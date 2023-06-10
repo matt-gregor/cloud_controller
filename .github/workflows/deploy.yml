@@ -26,6 +26,7 @@ jobs:
         username: ${{ secrets.SSH_USERNAME }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         script_stop: false
+        debug: true
         script: |
           cd /home/ec2-user/controller/cloud_controller
           pkill -f cloud_endpoint_fastapi
