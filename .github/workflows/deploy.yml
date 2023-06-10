@@ -1,4 +1,4 @@
-name: Deploy to EC2
+name: Deploy and Run on EC2
 
 on:
   push:
@@ -9,23 +9,23 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v2
+    - name: Checkout Repository
+      uses: actions/checkout@v2
 
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.11.x'
+    - name: Configure SSH Key
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Install Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+    - name: Send Repo to EC2
+      run: scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -r ./ ${{ secrets.SSH_USERNAME }}@${{ secrets.EC2_HOST }}:/home/ec2-user/controller
 
-      - name: Deploy to EC2
-        run: |
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key.pem
-          chmod 600 private_key.pem
-          ssh -o StrictHostKeyChecking=no -i private_key.pem ${{ secrets.SSH_USERNAME }}@${{ secrets.EC2_HOST }} 'PID=$(pgrep -f cloud_endpoint_fastapi) && kill -SIGTERM $PID && wait $PID'
-          ssh -o StrictHostKeyChecking=no -i private_key.pem ${{ secrets.SSH_USERNAME }}@${{ secrets.EC2_HOST }} 'cd /home/ec2-user/controller && git pull && source .venv/bin/activate && pip install -r requirements.txt && python3 cloud_endpoint_fastapi.py'
+    - name: Install Dependencies on EC2
+      run: |
+        ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${{ secrets.SSH_USERNAME }}@${{ secrets.EC2_HOST }} 'cd /path/to/destination && python3.11 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt'
 
+    - name: Run New Process on EC2
+      run: |
+        ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${{ secrets.SSH_USERNAME }}@${{ secrets.EC2_HOST }} 'pkill -f cloud_endpoint_fastapi && cd /path/to/destination && python cloud_endpoint_fastapi.py &'
