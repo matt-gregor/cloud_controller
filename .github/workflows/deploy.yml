@@ -15,27 +15,26 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v3
 
     - name: executing remote ssh commands using key
         uses: appleboy/ssh-action@v0.1.10
-          with:
-            host: ${{ secrets.EC2_HOST }}
-            username: ${{ secrets.SSH_USERNAME }}
-            key: ${{ secrets.SSH_PRIVATE_KEY }}
-            script_stop: true
-            script: |
-              cd /home/ec2-user/controller/cloud_controller
-              pkill -f cloud_endpoint_fastapi
-              rm -r .venv
-              git pull https://github.com/matt-gregor/cloud_controller.git
-              python3.11 -m venv .venv
-              source .venv/bin/activate
-              pip install -r requirements.txt
-              python cloud_endpoint_fastapi.py
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script_stop: true
+          script: |
+            cd /home/ec2-user/controller/cloud_controller
+            pkill -f cloud_endpoint_fastapi
+            rm -r .venv
+            git pull https://github.com/matt-gregor/cloud_controller.git
+            python3.11 -m venv .venv
+            source .venv/bin/activate
+            pip install -r requirements.txt
+            python cloud_endpoint_fastapi.py
 
 
 
