@@ -18,22 +18,34 @@ jobs:
 
     steps:
     - name: Checkout Repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
-    - name: Configure SSH Key
-      run: |
-        mkdir -p ~/.ssh
-        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+    - name: executing remote ssh commands using password
+          uses: appleboy/ssh-action@v0.1.10
+          with:
+            host: ${{ secrets.EC2_HOST }}
+            username: ${{ secrets.SSH_USERNAME }}
+            key: ${{ secrets.SSH_PRIVATE_KEY }}
+            script_stop: true
+            script: |
+              cd /home/ec2-user/controller/cloud_controller
+              pkill -f cloud_endpoint_fastapi
+              rm -r .venv
+              git pull https://github.com/matt-gregor/cloud_controller.git
+              python3.11 -m venv .venv
+              source .venv/bin/activate
+              pip install -r requirements.txt
+              python cloud_endpoint_fastapi.py
 
-    - name: Send Repo to EC2
-      run: scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -r ./ ${{ secrets.SSH_USERNAME }}@${{ secrets.EC2_HOST }}:/home/ec2-user/controller
 
-    - name: Install Dependencies on EC2
-      run: |
-        ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${{ secrets.SSH_USERNAME }}@${{ secrets.EC2_HOST }} 'cd /path/to/destination && python3.11 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt'
 
-    - name: Run New Process on EC2
-      run: |
-        ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${{ secrets.SSH_USERNAME }}@${{ secrets.EC2_HOST }} 'pkill -f cloud_endpoint_fastapi && cd /path/to/destination && python cloud_endpoint_fastapi.py &'
+    # - name: Send Repo to EC2
+    #   run: scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa -r ./ ${{ secrets.SSH_USERNAME }}@${{ secrets.EC2_HOST }}:/home/ec2-user/controller
+
+    # - name: Install Dependencies on EC2
+    #   run: |
+    #     ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${{ secrets.SSH_USERNAME }}@${{ secrets.EC2_HOST }} 'cd /path/to/destination && python3.11 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt'
+
+    # - name: Run New Process on EC2
+    #   run: |
+    #     ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${{ secrets.SSH_USERNAME }}@${{ secrets.EC2_HOST }} 'pkill -f cloud_endpoint_fastapi && cd /path/to/destination && python cloud_endpoint_fastapi.py'
