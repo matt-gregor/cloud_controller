@@ -29,18 +29,13 @@ jobs:
         debug: true
         script: |
           cd /home/ec2-user/controller/cloud_controller
-
-          rm -r .venv
           git pull https://github.com/matt-gregor/cloud_controller.git
-          python3.11 -m venv .venv
-          source .venv/bin/activate
-          pip install -r requirements.txt
-          python cloud_endpoint_fastapi.py > /dev/null 2>&1 &
+          docker build -t cloud_controller:latest .
+          docker stop $docker_controller && docker rm -fv $docker_controller || true
+          docker run --restart unless-stopped \
+          --detach \
+          -P 8080:8080 \
+          --name $docker_controller
 
-# pkill -f cloud_endpoint_fastapi
 
-# PID=$(pgrep -f cloud_endpoint_fastapi)
-# if [[ -n "$PID" ]]; then
-#   echo "Killing process $PID"
-#   kill $PID
-# fi
+
