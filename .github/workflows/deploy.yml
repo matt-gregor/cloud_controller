@@ -29,11 +29,7 @@ jobs:
         debug: true
         script: |
           cd /home/ec2-user/controller/cloud_controller
-          PID=$(pgrep -f cloud_endpoint_fastapi)
-          if [[ -n "$PID" ]]; then
-            echo "Killing process $PID"
-            kill $PID
-          fi
+
           rm -r .venv
           git pull https://github.com/matt-gregor/cloud_controller.git
           python3.11 -m venv .venv
@@ -42,3 +38,9 @@ jobs:
           python cloud_endpoint_fastapi.py > /dev/null 2>&1 &
 
 # pkill -f cloud_endpoint_fastapi
+
+# PID=$(pgrep -f cloud_endpoint_fastapi)
+# if [[ -n "$PID" ]]; then
+#   echo "Killing process $PID"
+#   kill $PID
+# fi
