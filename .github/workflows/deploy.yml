@@ -35,7 +35,8 @@ jobs:
           sudo docker run --restart unless-stopped \
           --detach \
           -p 8080:8080 \
-          --name docker_controller
+          --name docker_controller \
+          cloud_controller:latest
 
 
 
