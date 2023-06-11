@@ -18,7 +18,7 @@ def your_endpoint(data: Data):
 
     # Perform actions based on the numerical value
     if value > 10:
-        result = "Value is greater than 10xx"
+        result = "Value is greater than 10xxx"
     else:
         result = "Value is less than or equal to 10"
 
