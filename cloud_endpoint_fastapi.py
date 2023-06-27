@@ -6,18 +6,17 @@ app = FastAPI()
 
 
 class Data(BaseModel):
-    value: int
+    SetPoint: float
+    ProcessVariable: float
+    ControlVariable: float
+
+
+test = 15
 
 
 @app.post("/your-endpoint")
 def your_endpoint(data: Data):
-    value = data.value
-    # Perform actions based on the numerical value
-    if value > 10:
-        result = "Value is greater than 10xxx"
-    else:
-        result = "Value is less than or equal to 10"
-
+    result = f"data received: SP = {data.SetPoint}, PV = {data.ProcessVariable}, CV = {data.ControlVariable}, test = {test}"
     return {"result": result}
 
 
