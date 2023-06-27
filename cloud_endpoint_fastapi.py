@@ -11,12 +11,36 @@ class Data(BaseModel):
     ControlVariable: float
 
 
-test = 15
+# DECLARING GLOBAL CONSTANTS AND GLOBAL VARIABLES FOR PID
+LOWERLIMIT = 0
+UPPERLIMIT = 4
+
+TI = 3.45
+H = 0.1
+KR = 1.202936
+
+errorSum = 0
 
 
 @app.post("/your-endpoint")
 def your_endpoint(data: Data):
-    result = f"data received: SP = {data.SetPoint}, PV = {data.ProcessVariable}, CV = {data.ControlVariable}, test = {test}"
+    global errorSum
+    SP = data.SetPoint
+    PV = data.ProcessVariable
+    CV = data.ControlVariable
+
+    error = SP - PV
+    errorSum += error
+    # output = kr * error + (kr * h / Ti) * errorSum + kr * Td * (error - errorPrev) / h #PID
+    output = KR * error + (KR * H / TI) * errorSum
+    if output >= UPPERLIMIT:
+        output = UPPERLIMIT
+        errorSum -= error
+    elif output <= LOWERLIMIT:
+        output = LOWERLIMIT
+        errorSum -= error
+    # result = f"data received: SP = {data.SetPoint}, PV = {data.ProcessVariable}, CV = {data.ControlVariable}"
+    result = str(output)
     return {"result": result}
 
 
