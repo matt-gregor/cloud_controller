@@ -1,0 +1,2 @@
+docker build -t cloud_controller:latest .
+docker run --restart unless-stopped --detach -p 8080:8080 --name docker_controller cloud_controller:latest

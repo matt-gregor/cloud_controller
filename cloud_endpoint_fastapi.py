@@ -9,6 +9,7 @@ class Data(BaseModel):
     SetPoint: float
     ProcessVariable: float
     ControlVariable: float
+    ControllerType: str
 
 
 # DECLARING GLOBAL CONSTANTS AND GLOBAL VARIABLES FOR PID
@@ -28,18 +29,25 @@ def your_endpoint(data: Data):
     SP = data.SetPoint
     PV = data.ProcessVariable
     CV = data.ControlVariable
+    ControllerType = data.ControllerType
 
-    error = SP - PV
-    errorSum += error
-    # output = kr * error + (kr * h / Ti) * errorSum + kr * Td * (error - errorPrev) / h #PID
-    output = KR * error + (KR * H / TI) * errorSum
-    if output >= UPPERLIMIT:
-        output = UPPERLIMIT
-        errorSum -= error
-    elif output <= LOWERLIMIT:
-        output = LOWERLIMIT
-        errorSum -= error
-    # result = f"data received: SP = {data.SetPoint}, PV = {data.ProcessVariable}, CV = {data.ControlVariable}"
+    match ControllerType:
+        case "PID":
+            error = SP - PV
+            errorSum += error
+            # output = kr * error + (kr * h / Ti) * errorSum + kr * Td * (error - errorPrev) / h #PID
+            output = KR * error + (KR * H / TI) * errorSum
+            if output >= UPPERLIMIT:
+                output = UPPERLIMIT
+                errorSum -= error
+            elif output <= LOWERLIMIT:
+                output = LOWERLIMIT
+                errorSum -= error
+        case "MPC":
+            result = 1.2345
+        case "ADRC":
+            result = 1.2345
+
     result = str(output)
     return {"result": result}
 
