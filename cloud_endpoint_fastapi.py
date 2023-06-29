@@ -1,3 +1,4 @@
+import pyadrc
 import uvicorn
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -22,6 +23,14 @@ KR = 1.202936
 
 errorSum = 0
 
+b0 = 0.26816115942028985507246376811594
+delta = 0.1
+order = 1
+t_settle = 0.5714
+k_eso = 6
+
+adrc_statespace = pyadrc.StateSpace(order, delta, b0, t_settle, k_eso, r_lim=(0, 4), m_lim=(0, 4))
+
 
 @app.post("/your-endpoint")
 def your_endpoint(data: Data):
@@ -44,9 +53,10 @@ def your_endpoint(data: Data):
                 output = LOWERLIMIT
                 errorSum -= error
         case "MPC":
-            result = 1.2345
+            output = 1.2345
         case "ADRC":
-            result = 1.2345
+            output = adrc_statespace(PV, CV, SP)
+            print(output)
 
     result = str(output)
     return {"result": result}
