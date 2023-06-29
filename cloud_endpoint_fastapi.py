@@ -27,9 +27,9 @@ b0 = 0.26816115942028985507246376811594
 delta = 0.1
 order = 1
 t_settle = 0.5714
-k_eso = 6
+k_eso = 10
 
-adrc_statespace = pyadrc.StateSpace(order, delta, b0, t_settle, k_eso, r_lim=(0, 4), m_lim=(0, 4))
+adrc_statespace = pyadrc.StateSpace(order, delta, b0, t_settle, k_eso, m_lim=(0, 4), r_lim=(-1, 1))
 
 
 @app.post("/your-endpoint")
@@ -56,7 +56,7 @@ def your_endpoint(data: Data):
             output = 1.2345
         case "ADRC":
             output = adrc_statespace(PV, CV, SP)
-            print(output)
+            print(f"SP: {SP}, PV: {PV}, CV: {CV}, output: {output}")
 
     result = str(output)
     return {"result": result}
