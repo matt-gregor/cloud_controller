@@ -31,47 +31,60 @@ errorSum = 0
 # System parameters
 K = 0.925156  # Gain
 T = 3.45  # Time constant
-L = 0.1  # Dead time
-Ts = 0.1  # Sampling time
-
-
-# Discrete-time system model
-def system_model(y, u):
-    return np.exp(-L/Ts) * y + K*(1 - np.exp(-L/Ts)) * u
-
-
+T0 = 0.1  # Dead time
+H = 0.1  # Sampling time
 # Cost function parameters
-Q = 1.0  # State deviation weight
+Q = 2.1  # State deviation weight
 R = 0.1  # Control effort weight
+# Control input constraints
+u_min = 0.0
+u_max = 4.0
 
-# MPC controller function
-def mpc_controller(setpoint_sequence, horizon):
-    # Control input constraints
-    u_min = 0.0
-    u_max = 4.0
 
-    # Initial control sequence
-    u_sequence = np.zeros(horizon)
+# MY MPC
+y_prev_mpc = 0.0
+def system_model(y, u):
+    global y_prev_mpc
 
-    # Define optimization problem
-    def cost_function(u_sequence):
-        J = 0.0
-        y = 0.0
+    y = y_prev_mpc
+    delta_y = (-1 / T) * y + (K / T) * u
+    y_prev_mpc = y + delta_y * H
+    return y
 
-        for i in range(horizon):
-            y = system_model(y, u_sequence[i])
-            J += Q * (y - setpoint_sequence[i])**2
-            J += R * u_sequence[i]**2
 
-        return J
+def cost_function(u_sequence, y, setpoint_sequence):
+    global y_prev_mpc
+    cost = 0.0
+    y_prev_mpc = y
+    for sp, u in zip(setpoint_sequence, u_sequence):
+        y_predicted = system_model(y, u)
+        cost += Q * (sp - y_predicted)**2 + R * u**2
+        y = y_predicted
+    return cost
 
-    # Define optimization bounds
+def mpc_controller(y, setpoint_sequence, u, horizon):
+
+    # Define bounds for control inputs
     bounds = [(u_min, u_max)] * horizon
 
-    # Solve the optimization problem
-    result = minimize(cost_function, u_sequence, bounds=bounds)
+    # Set initial control sequence
+    # u_sequence_initial = np.zeros(horizon)
+    u_sequence_initial = [u] * horizon
 
-    return result.x[0]
+    # Define optimization problem
+    optimization_result = minimize(
+        cost_function,
+        u_sequence_initial,
+        args=(y, setpoint_sequence),
+        bounds=bounds,
+        method='SLSQP'
+    )
+
+    # Extract optimal control sequence
+    u_sequence_optimal = optimization_result.x
+
+    # Return next optimal control input
+    return u_sequence_optimal[0]
 
 
 ######### ADRC
@@ -104,11 +117,13 @@ def your_endpoint(data: Data):
             elif output <= LOWERLIMIT:
                 output = LOWERLIMIT
                 errorSum -= error
+
         case "MPC":
-            horizon = 10
+            horizon = 30
             setpoint_sequence = [SP] * horizon
-            output = mpc_controller(setpoint_sequence, horizon)
             # output = 1.2345
+            output = mpc_controller(PV, setpoint_sequence, CV, horizon)
+
         case "ADRC":
             output = adrc_statespace(PV, CV, SP)
             print(f"SP: {SP}, PV: {PV}, CV: {CV}, output: {output}")
