@@ -83,10 +83,12 @@ def cost_function(u_sequence, y, setpoint_sequence):
     return cost
 
 
-def mpc_controller(y, setpoint_sequence, u, horizon):
+def mpc_controller(y, set_point, u, horizon):
 
     # Define bounds for control inputs
     bounds = [(u_min, u_max)] * horizon
+
+    setpoint_sequence = [set_point] * horizon
 
     # Set initial control sequence
     # u_sequence_initial = np.zeros(horizon)
@@ -112,8 +114,8 @@ def mpc_controller(y, setpoint_sequence, u, horizon):
 '''
 DECLARING GLOBAL CONSTANTS, CONTRAINTS AND VARIABLES FOR ADRC
 '''
-b0 = 0.26816115942028985507246376811594
-delta = 0.1
+b0 = K / T
+delta = H
 order = 1
 t_settle = 0.5714
 k_eso = 10
@@ -121,30 +123,31 @@ k_eso = 10
 adrc_statespace = pyadrc.StateSpace(order, delta, b0, t_settle, k_eso, m_lim=(0, 4), r_lim=(-1, 1))
 
 
+
 @app.post("/cloud-controller-endpoint")
 def your_endpoint(data: Data):
+
     set_point = data.SetPoint
     process_variable = data.ProcessVariable
     control_variable = data.ControlVariable
     controller_type = data.ControllerType
 
     match controller_type:
+
         case "PID":
             output = pi_controller(set_point, process_variable)
 
         case "MPC":
             horizon = 80
-            setpoint_sequence = [set_point] * horizon
-            # output = 1.2345
-            output = mpc_controller(process_variable, setpoint_sequence, control_variable, horizon)
+            output = mpc_controller(process_variable, set_point, control_variable, horizon)
 
         case "ADRC":
             output = adrc_statespace(process_variable, control_variable, set_point)
-            # print(f"SP: {set_point}, PV: {process_variable}, CV: {control_variable}, output: {output}")
 
         case "myADRC":
             output = 1.2345
 
+    # print(f"SP: {set_point}, PV: {process_variable}, CV: {control_variable}, output: {output}")
     result = str(output)
     return {"result": result}
 
