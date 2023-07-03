@@ -14,84 +14,41 @@ def saturation(_limits: tuple, _val: float) -> float:
     return _val
 
 
-class StateSpace():
-
-    """Discrete linear time-invariant state space implementation\
-    of ADRC
-
-    Parameters
-    ----------
-    order : int
-        first- or second-order ADRC
-    delta : float
-        sampling time in seconds
-    b0 : float
-        gain parameter b0
-    w_cl : float
-        desired closed-loop bandwidth [rad/s], 4 / w_cl and 6 / w_cl is the
-        corresponding settling time in seconds for first- and second-order ADRC
-        respectively
-    k_eso : float
-        relational observer bandwidth
-    eso_init : tuple, optional
-        initial state for the extended state observer, by default False
-    r_lim : tuple, optional
-        rate limits for the control signal, by default (None, None)
-    m_lim : tuple, optional
-        magnitude limits for the control signal, by default (None, None)
-    half_gain : tuple, optional
-        half gain tuning for controller/observer gains,\
-        by default (False, False)
-
-    References
-    ----------
-    .. [1] G. Herbst, "Practical active disturbance rejection control:
-        Bumpless transfer, rate limitation, and incremental algorithm",
-        https://arxiv.org/abs/1908.04610
-
-    .. [2] G. Herbst, "Half-Gain Tuning for Active Disturbance Rejection
-        Control", https://arxiv.org/abs/2003.03986
-    """
+class FirstOrderADRC():
 
     def __init__(self,
-                 delta: float,
+                 Ts: float,
                  b0: float,
                  w_cl: float,
                  k_eso: float,
-                 eso_init: tuple = False,
                  r_lim: tuple = (None, None),
                  m_lim: tuple = (None, None),
                  half_gain: tuple = (False, False)):
 
-        order = 1
-        self.b0 = b0
-        nx = order + 1
-        self.delta = delta
+        # Discretised matrices for first order ADRC
+        self.Ad = np.vstack(([1, Ts], [0, 1]))
+        self.Bd = np.vstack((b0 * Ts, 0))
+        self.Cd = np.hstack((1, 0)).reshape(1, -1)
+        self.Dd = 0
 
-        if order == 1:
-            self.Ad = np.vstack(([1, delta], [0, 1]))
-            self.Bd = np.vstack((b0 * delta, 0))
-            self.Cd = np.hstack((1, 0)).reshape(1, -1)
-            self.Dd = 0
+        # Controller parameters for closed-loop dynamics
+        t_settle = 4 / w_cl
+        sCL = -4 / t_settle
+        self.Kp = -2 * sCL
 
-            # Controller parameters for closed-loop dynamics
-            t_settle = 4 / w_cl
-            sCL = -4 / t_settle
-            self.Kp = -2 * sCL
+        # Observer dynamics
+        sESO = k_eso * sCL
+        zESO = np.exp(sESO * Ts)
 
-            # Observer dynamics
-            sESO = k_eso * sCL
-            zESO = np.exp(sESO * delta)
+        # Observer gains resulting in common-location observer poles
+        self.L = np.array([1 - (zESO)**2,
+                            (1 / Ts) * (1 - zESO)**2]).reshape(-1, 1)
 
-            # Observer gains resulting in common-location observer poles
-            self.L = np.array([1 - (zESO)**2,
-                               (1 / delta) * (1 - zESO)**2]).reshape(-1, 1)
+        # Controller gains
+        self.w = np.array([self.Kp / self.b0,
+                            1 / self.b0]).reshape(-1, 1)
 
-            # Controller gains
-            self.w = np.array([self.Kp / self.b0,
-                               1 / self.b0]).reshape(-1, 1)
-
-        self.xhat = np.zeros((nx, 1), dtype=np.float64)
+        self.xhat = np.zeros((2, 1), dtype=np.float64)
 
         self.ukm1 = np.zeros((1, 1), dtype=np.float64)
 
@@ -102,12 +59,6 @@ class StateSpace():
             self.w = self.w / 2
         if half_gain[1] is True:
             self.L = self.L / 2
-
-        if eso_init is not False:
-            assert len(eso_init) == nx,\
-                'Length of initial state vector of LESO not compatible\
-                    with order'
-            self.xhat = np.fromiter(eso_init, np.float64).reshape(-1, 1)
 
         self._linear_extended_state_observer()
 
@@ -191,6 +142,7 @@ class StateSpace():
 
         self._update_eso(y, u)
 
+        #control law
         u = (self.Kp / self.b0) * r - self.w.T @ self.xhat
         u = self._limiter(u)
 
