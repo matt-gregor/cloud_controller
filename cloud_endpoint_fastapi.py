@@ -229,7 +229,7 @@ def cloud_endpoint(data: Data):
             output = pi_controller(set_point, process_variable, error_sum)
 
         case "MPC":
-            horizon = 80
+            horizon = 50
             output = mpc_controller(process_variable, set_point, control_variable, horizon)
 
         case "ADRC":
