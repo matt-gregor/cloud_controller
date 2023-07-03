@@ -12,7 +12,9 @@ class Data(BaseModel):
     SetPoint: float
     ProcessVariable: float
     ControlVariable: float
+    ErrorSum: float
     ControllerType: str
+
 
 
 '''
@@ -26,8 +28,9 @@ KR = 1.202936
 errorSum = 0
 
 
-def pi_controller(set_point, process_variable):
+def pi_controller(set_point, process_variable, error_sum):
     global errorSum
+    errorSum = error_sum
     error = set_point - process_variable
     errorSum += error
     # output = kr * error + (kr * h / Ti) * errorSum + kr * Td * (error - errorPrev) / h #PID
@@ -38,6 +41,7 @@ def pi_controller(set_point, process_variable):
     elif output <= LOWERLIMIT:
         output = LOWERLIMIT
         errorSum -= error
+    return output
 
 '''
 DECLARING GLOBAL CONSTANTS, CONTRAINTS AND VARIABLES FOR MPC
@@ -130,12 +134,14 @@ def your_endpoint(data: Data):
     set_point = data.SetPoint
     process_variable = data.ProcessVariable
     control_variable = data.ControlVariable
+    error_sum = data.ErrorSum
     controller_type = data.ControllerType
 
     match controller_type:
 
         case "PID":
-            output = pi_controller(set_point, process_variable)
+            output = pi_controller(set_point, process_variable, error_sum)
+            print(output)
 
         case "MPC":
             horizon = 80

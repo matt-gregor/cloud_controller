@@ -1,5 +1,3 @@
-import time
-
 import numpy as np
 
 
@@ -56,7 +54,6 @@ class StateSpace():
     """
 
     def __init__(self,
-                 order: int,
                  delta: float,
                  b0: float,
                  w_cl: float,
@@ -66,9 +63,7 @@ class StateSpace():
                  m_lim: tuple = (None, None),
                  half_gain: tuple = (False, False)):
 
-        assert (order == 1) or (order == 2),\
-            'Only first- and second-order ADRC is implemented'
-
+        order = 1
         self.b0 = b0
         nx = order + 1
         self.delta = delta
