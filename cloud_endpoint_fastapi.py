@@ -3,6 +3,7 @@ import pyadrc
 import uvicorn
 from fastapi import FastAPI
 from pydantic import BaseModel
+from scipy import signal
 from scipy.optimize import minimize
 
 app = FastAPI()
@@ -106,6 +107,41 @@ def mpc_controller(y, set_point, u, horizon):
         bounds=bounds,
         method='SLSQP',
         options={'maxiter': 5}
+    )
+
+    # Extract optimal control sequence
+    u_sequence_optimal = optimization_result.x
+
+    # Return next optimal control input
+    return u_sequence_optimal[0]
+
+numerator = [0, 0.02643]  # Example coefficients, replace with your own
+denominator = [1, -0.9714]  # Example coefficients, replace with your own
+def system_model2(y, u_sequence):
+    return np.array(y + signal.lfilter(numerator, denominator, u_sequence))
+
+q = 10.0  # State deviation weight
+r = 0.1  # Control effort weight
+def cost_function2(u_sequence, y, setpoint_sequence):
+    y_predicted = system_model2(y, u_sequence)
+    return np.sum(q * (setpoint_sequence - y_predicted)**2 + r * u_sequence**2)
+
+
+def mpc_controller2(y, set_point, u, horizon):
+
+    # Define bounds for control inputs
+    bounds = [(u_min, u_max)] * horizon
+    setpoint_sequence = np.full(horizon, set_point)
+    u_sequence_initial = np.full(horizon, u)
+
+    # Define optimization problem
+    optimization_result = minimize(
+        cost_function2,
+        u_sequence_initial,
+        args=(y, setpoint_sequence),
+        bounds=bounds,
+        method='SLSQP',
+        options={'maxiter': 15}
     )
 
     # Extract optimal control sequence
@@ -231,6 +267,10 @@ def cloud_endpoint(data: Data):
         case "MPC":
             horizon = 50
             output = mpc_controller(process_variable, set_point, control_variable, horizon)
+
+        case "myMPC":
+            horizon = 50
+            output = mpc_controller2(process_variable, set_point, control_variable, horizon)
 
         case "ADRC":
             output = adrc_statespace(process_variable, control_variable, set_point)
