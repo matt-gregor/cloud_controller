@@ -118,10 +118,15 @@ def mpc_controller(y, set_point, u, horizon):
 numerator = [0, 0.02643]  # Example coefficients, replace with your own
 denominator = [1, -0.9714]  # Example coefficients, replace with your own
 def system_model2(y, u_sequence):
-    return np.array(y + signal.lfilter(numerator, denominator, u_sequence))
+    # return np.array(y + signal.lfilter(numerator, denominator, u_sequence))
+    return np.concatenate((np.array([y]), np.array(y + signal.lfilter(numerator, denominator, u_sequence[0:len(u_sequence)-1]))))
 
-q = 10.0  # State deviation weight
+# q = 10.0  # State deviation weight
+# r = 0.1  # Control effort weight
+q = 100.0  # State deviation weight
 r = 0.1  # Control effort weight
+# q = 1000.0  # State deviation weight
+# r = 0.0001  # Control effort weight
 def cost_function2(u_sequence, y, setpoint_sequence):
     y_predicted = system_model2(y, u_sequence)
     return np.sum(q * (setpoint_sequence - y_predicted)**2 + r * u_sequence**2)
@@ -141,6 +146,7 @@ def mpc_controller2(y, set_point, u, horizon):
         args=(y, setpoint_sequence),
         bounds=bounds,
         method='SLSQP',
+        # options={'maxiter': 15}
         options={'maxiter': 15}
     )
 
@@ -269,7 +275,8 @@ def cloud_endpoint(data: Data):
             output = mpc_controller(process_variable, set_point, control_variable, horizon)
 
         case "myMPC":
-            horizon = 50
+            # horizon = 20
+            horizon = 20
             output = mpc_controller2(process_variable, set_point, control_variable, horizon)
 
         case "ADRC":
