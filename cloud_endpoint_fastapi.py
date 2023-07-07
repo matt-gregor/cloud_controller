@@ -53,7 +53,7 @@ T = 3.45  # Time constant
 T0 = 0.1  # Dead time
 H = 0.1  # Sampling time
 # Cost function parameters
-Q = 4.1  # State deviation weight
+Q = 100.0  # State deviation weight
 R = 0.1  # Control effort weight
 # Control input constraints
 u_min = 0.0
@@ -115,8 +115,8 @@ def mpc_controller(y, set_point, u, horizon):
     # Return next optimal control input
     return u_sequence_optimal[0]
 
-numerator = [0, 0.02643]  # Example coefficients, replace with your own
-denominator = [1, -0.9714]  # Example coefficients, replace with your own
+numerator = [0, 0.02643]
+denominator = [1, -0.9714]
 def system_model2(y, u_sequence):
     # return np.array(y + signal.lfilter(numerator, denominator, u_sequence))
     return np.concatenate((np.array([y]), np.array(y + signal.lfilter(numerator, denominator, u_sequence[0:len(u_sequence)-1]))))
@@ -126,7 +126,7 @@ def system_model2(y, u_sequence):
 q = 100.0  # State deviation weight
 r = 0.1  # Control effort weight
 # q = 1000.0  # State deviation weight
-# r = 0.0001  # Control effort weight
+# r = 0.1  # Control effort weight
 def cost_function2(u_sequence, y, setpoint_sequence):
     y_predicted = system_model2(y, u_sequence)
     return np.sum(q * (setpoint_sequence - y_predicted)**2 + r * u_sequence**2)
