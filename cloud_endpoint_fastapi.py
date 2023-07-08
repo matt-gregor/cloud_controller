@@ -17,7 +17,6 @@ class Data(BaseModel):
     ControllerType: str
 
 
-
 '''
 DECLARING GLOBAL CONSTANTS, CONTRAINTS AND VARIABLES FOR PID
 '''
@@ -43,6 +42,7 @@ def pi_controller(set_point, process_variable, error_sum):
         output = LOWERLIMIT
         errorSum -= error
     return output
+
 
 '''
 DECLARING GLOBAL CONSTANTS, CONTRAINTS AND VARIABLES FOR MPC
@@ -103,7 +103,6 @@ def mpc_controller(y, set_point, u, horizon):
     setpoint_sequence = np.full(horizon, set_point)
     u_sequence_initial = np.full(horizon, u)
 
-
     # Define optimization problem
     optimization_result = minimize(
         cost_function,
@@ -120,11 +119,15 @@ def mpc_controller(y, set_point, u, horizon):
     # Return next optimal control input
     return u_sequence_optimal[0]
 
+
 numerator = [0, 0.02643]
 denominator = [1, -0.9714]
+
+
 def system_model2(y, u_sequence):
     # return np.array(y + signal.lfilter(numerator, denominator, u_sequence))
     return np.concatenate((np.array([y]), np.array(y + signal.lfilter(numerator, denominator, u_sequence[0:len(u_sequence)-1]))))
+
 
 # q = 10.0  # State deviation weight
 # r = 0.1  # Control effort weight
@@ -132,6 +135,8 @@ q = 100.0  # State deviation weight
 r = 0.1  # Control effort weight
 # q = 1000.0  # State deviation weight
 # r = 0.1  # Control effort weight
+
+
 def cost_function2(u_sequence, y, setpoint_sequence):
     y_predicted = system_model2(y, u_sequence)
     return np.sum(q * (setpoint_sequence - y_predicted)**2 + r * u_sequence**2)
@@ -253,6 +258,7 @@ class FirstOrderADRC():
 
         return float(u)
 
+
 b0 = K / T
 delta = H
 order = 1
@@ -260,6 +266,7 @@ w_cl = 1
 k_eso = 10
 
 myadrc = FirstOrderADRC(Ts=H, b0=b0, T_set=5, k_cl=4, k_eso=10, r_lim=(-1, 1), m_lim=(0, 4))
+
 
 @app.post("/cloud-controller-endpoint")
 def cloud_endpoint(data: Data):
