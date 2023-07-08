@@ -91,13 +91,18 @@ def cost_function(u_sequence, y, setpoint_sequence):
 def mpc_controller(y, set_point, u, horizon):
 
     # Define bounds for control inputs
+    # bounds = [(u_min, u_max)] * horizon
+
+    # setpoint_sequence = [set_point] * horizon
+
+    # # Set initial control sequence
+    # # u_sequence_initial = np.zeros(horizon)
+    # u_sequence_initial = [u] * horizon
+
     bounds = [(u_min, u_max)] * horizon
+    setpoint_sequence = np.full(horizon, set_point)
+    u_sequence_initial = np.full(horizon, u)
 
-    setpoint_sequence = [set_point] * horizon
-
-    # Set initial control sequence
-    # u_sequence_initial = np.zeros(horizon)
-    u_sequence_initial = [u] * horizon
 
     # Define optimization problem
     optimization_result = minimize(
@@ -267,22 +272,22 @@ def cloud_endpoint(data: Data):
 
     match controller_type:
 
-        case "PID":
+        case "PID0":
             output = pi_controller(set_point, process_variable, error_sum)
 
-        case "MPC":
+        case "MPC0":
             horizon = 50
             output = mpc_controller(process_variable, set_point, control_variable, horizon)
 
-        case "myMPC":
+        case "MPC1":
             # horizon = 20
             horizon = 20
             output = mpc_controller2(process_variable, set_point, control_variable, horizon)
 
-        case "ADRC":
+        case "ADRC0":
             output = adrc_statespace(process_variable, control_variable, set_point)
 
-        case "myADRC":
+        case "ADRC1":
             output = myadrc(process_variable, control_variable, set_point)
 
     # print(f"SP: {set_point}, PV: {process_variable}, CV: {control_variable}, output: {output}")
