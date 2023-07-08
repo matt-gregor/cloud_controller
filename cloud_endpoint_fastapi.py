@@ -60,17 +60,6 @@ u_min = 0.0
 u_max = 4.0
 
 
-# MY MPC
-y_prev_mpc = 0.0
-# def system_model(y, u):
-#     global y_prev_mpc
-
-#     y = y_prev_mpc
-#     delta_y = (-1 / T) * y + (K / T) * u
-#     y_prev_mpc = y + delta_y * H
-#     return y
-
-
 def system_model(y, u):
     delta_y = (-1 / T) * y + (K / T) * u
     y += delta_y * H
@@ -78,9 +67,7 @@ def system_model(y, u):
 
 
 def cost_function(u_sequence, y, setpoint_sequence):
-    global y_prev_mpc
     cost = 0.0
-    y_prev_mpc = y
     for sp, u in zip(setpoint_sequence, u_sequence):
         y_predicted = system_model(y, u)
         cost += Q * (sp - y_predicted)**2 + R * u**2
@@ -91,15 +78,9 @@ def cost_function(u_sequence, y, setpoint_sequence):
 def mpc_controller(y, set_point, u, horizon):
 
     # Define bounds for control inputs
-    # bounds = [(u_min, u_max)] * horizon
-
-    # setpoint_sequence = [set_point] * horizon
-
-    # # Set initial control sequence
-    # # u_sequence_initial = np.zeros(horizon)
-    # u_sequence_initial = [u] * horizon
-
     bounds = [(u_min, u_max)] * horizon
+
+    # Set initial control sequence
     setpoint_sequence = np.full(horizon, set_point)
     u_sequence_initial = np.full(horizon, u)
 
