@@ -30,12 +30,13 @@ jobs:
         script: |
           cd /home/ec2-user/controller/cloud_controller
           git pull https://github.com/matt-gregor/cloud_controller.git
-          sudo docker build -t cloud_controller:latest .
-          sudo docker stop docker_controller && sudo docker rm -fv docker_controller || true
-          sudo docker run --restart unless-stopped \
+          docker build -t cloud_controller:latest .
+          docker stop docker_controller && docker rm -fv docker_controller && docker image prune || true
+          docker run --restart unless-stopped \
           --detach \
           -p 8080:8080 \
           --name docker_controller \
+          --network="communication-network" \
           cloud_controller:latest
 
 
