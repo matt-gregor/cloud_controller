@@ -1,3 +1,5 @@
+import socket
+
 import numpy as np
 import pyadrc
 import uvicorn
@@ -279,6 +281,15 @@ def cloud_endpoint(data: Data):
             output = myadrc(process_variable, control_variable, set_point)
 
     # print(f"SP: {set_point}, PV: {process_variable}, CV: {control_variable}, output: {output}")
+
+    UDP_IP = "mynodered"
+    UDP_PORT = 5005
+    MESSAGE = b"Hello, World!"
+
+    sock = socket.socket(socket.AF_INET, # Internet
+                            socket.SOCK_DGRAM) # UDP
+    sock.sendto(MESSAGE, (UDP_IP, UDP_PORT))
+
     result = str(output)
     return {"result": result}
 
