@@ -284,11 +284,10 @@ def cloud_endpoint(data: Data):
 
     UDP_IP = "mynodered"
     UDP_PORT = 5005
-    MESSAGE = b"Hello, World!"
+    message_to_node_red = f"{set_point} {process_variable} {control_variable} {controller_type}".encode('utf-8')
 
-    sock = socket.socket(socket.AF_INET, # Internet
-                            socket.SOCK_DGRAM) # UDP
-    sock.sendto(MESSAGE, (UDP_IP, UDP_PORT))
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.sendto(message_to_node_red, (UDP_IP, UDP_PORT))
 
     result = str(output)
     return {"result": result}
