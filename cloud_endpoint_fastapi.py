@@ -284,6 +284,7 @@ def cloud_endpoint(data: Data):
 
     UDP_IP = "mynodered"
     UDP_PORT = 5005
+
     message_to_node_red = f"{set_point} {process_variable} {control_variable} {controller_type}".encode('utf-8')
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
