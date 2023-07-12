@@ -351,8 +351,10 @@ class ControlPerformanceAssesment():
                     self.rise_time = (self.prev_time - self.start_time_10_percent)/1000000000
 
         # Integral criteria
-        self.ISE += (self.current_error**2) * self.current_step_time
-        self.IAE += abs(self.current_error * self.current_step_time)
+        # self.ISE += (self.current_error**2) * self.current_step_time
+        # self.IAE += abs(self.current_error * self.current_step_time)
+        self.ISE += self.current_error**2
+        self.IAE += abs(self.current_error)
 
         # Mean Squared Error
         self.MSE = (1/self.counter) * (self.MSE + (self.current_error - (self.error_sum/self.counter))**2)
