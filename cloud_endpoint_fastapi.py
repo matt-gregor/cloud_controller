@@ -284,7 +284,7 @@ class ControlPerformanceAssesment():
 
         # Initializing timers
         self.prev_time = time.perf_counter_ns()
-        self.start_time = time.perf_counter_ns()
+        self.start_time = self.prev_time
         self.start_time_10_percent = None
         self.current_step_time = None
 
@@ -310,51 +310,52 @@ class ControlPerformanceAssesment():
         self.control_variable = u
         self.controller_type = ct
 
-        self.current_error = self.set_point - self.process_variable
-        self.error_sum += self.current_error
-        self.counter += 1
-
         if self.prev_set_point and self.prev_set_point != self.set_point:
             self.set_point_diff = self.set_point - self.prev_set_point
             self.old_set_point = self.prev_set_point
             self._zeroing()
 
+        self.current_error = self.set_point - self.process_variable
+        self.error_sum += self.current_error
+        self.counter += 1
+
         # Time in seconds
         self.current_step_time = (time.perf_counter_ns() - self.prev_time)/1000000000
         self.prev_time = time.perf_counter_ns()
+        if self.old_set_point:
+            # Overshoot
+            if self.set_point > self.old_set_point and (self.process_variable - self.set_point)/self.set_point+0.0000001 > self.overshoot:
+                self.overshoot = (self.process_variable - self.set_point)/self.set_point+0.0000001
+            elif self.set_point < self.old_set_point and (self.process_variable - self.set_point)/self.set_point+0.0000001 > self.overshoot:
+                self.overshoot = (self.set_point - self.process_variable)/self.set_point+0.0000001
 
-        # Overshoot
-        if self.set_point > self.old_set_point:
-            self.overshoot = (self.process_variable - self.set_point)/self.set_point
-        elif self.set_point < self.old_set_point:
-            self.overshoot = (self.set_point - self.process_variable)/self.set_point
+            # Regulation time old_sp -> 0.95*new_sp
+            if self.regulation_time == 0.0:
+                if self.set_point > self.old_set_point and self.process_variable >= self.old_set_point + 0.95*self.set_point_diff:
+                    self.regulation_time = (self.prev_time - self.start_time)/1000000000
+                elif self.set_point < self.old_set_point and self.process_variable <= self.old_set_point + 0.95*self.set_point_diff:
+                    self.regulation_time = (self.prev_time - self.start_time)/1000000000
 
-        # Regulation time old_sp -> 0.95*new_sp
-        if self.set_point > self.old_set_point and self.process_variable >= self.old_set_point + 0.95*self.set_point_diff:
-            self.regulation_time = (time.perf_counter_ns() - self.start_time)/1000000000
-        elif self.set_point < self.old_set_point and self.process_variable <= self.old_set_point + 0.95*self.set_point_diff:
-            self.regulation_time = (time.perf_counter_ns() - self.start_time)/1000000000
+            # Rise time 0.1*new_sp -> 0.90*new_sp TIMER START
+            if self.start_time_10_percent is None:
+                if self.set_point > self.old_set_point and self.process_variable >= self.old_set_point + 0.1*self.set_point_diff:
+                    self.start_time_10_percent = self.prev_time
+                elif self.set_point < self.old_set_point and self.process_variable <= self.old_set_point + 0.1*self.set_point_diff:
+                    self.start_time_10_percent = self.prev_time
 
-        # Rise time 0.1*new_sp -> 0.90*new_sp TIMER START
-        if self.start_time_10_percent is None:
-            if self.set_point > self.old_set_point and self.process_variable >= self.old_set_point + 0.1*self.set_point_diff:
-                self.start_time_10_percent = time.perf_counter_ns()
-            elif self.set_point < self.old_set_point and self.process_variable <= self.old_set_point + 0.1*self.set_point_diff:
-                self.start_time_10_percent = time.perf_counter_ns()
-
-        # Rise time 0.1*new_sp -> 0.90*new_sp
-        if self.start_time_10_percent:
-            if self.set_point > self.old_set_point and self.process_variable >= self.old_set_point + 0.9*self.set_point_diff:
-                self.rise_time = (time.perf_counter_ns() - self.start_time_10_percent)/1000000000
-            elif self.set_point < self.old_set_point and self.process_variable <= self.old_set_point + 0.9*self.set_point_diff:
-                self.rise_time = (time.perf_counter_ns() - self.start_time_10_percent)/1000000000
+            # Rise time 0.1*new_sp -> 0.90*new_sp
+            if self.start_time_10_percent and self.rise_time == 0.0:
+                if self.set_point > self.old_set_point and self.process_variable >= self.old_set_point + 0.9*self.set_point_diff:
+                    self.rise_time = (self.prev_time - self.start_time_10_percent)/1000000000
+                elif self.set_point < self.old_set_point and self.process_variable <= self.old_set_point + 0.9*self.set_point_diff:
+                    self.rise_time = (self.prev_time - self.start_time_10_percent)/1000000000
 
         # Integral criteria
         self.ISE += (self.current_error**2) * self.current_step_time
         self.IAE += abs(self.current_error * self.current_step_time)
 
         # Mean Squared Error
-        self.MSE = (1/self.counter) * (self.MSE + (self.current_error - (self.error_sum/self.counter)**2))
+        self.MSE = (1/self.counter) * (self.MSE + (self.current_error - (self.error_sum/self.counter))**2)
 
         # Control cost
         if self.previous_control_variable:
@@ -374,6 +375,7 @@ def cloud_endpoint(data: Data):
     controller_type = data.ControllerType
 
     cpa.update_CPA_metrics(process_variable, control_variable, set_point, controller_type)
+    print(f"err: {cpa.current_error}, over: {cpa.overshoot}, reg_t: {cpa.regulation_time}, ris_t: {cpa.rise_time}, ISE: {cpa.ISE}, IAE: {cpa.IAE}, MSE: {cpa.MSE}, ctrl_c: {cpa.control_cost}")
 
     match controller_type:
 
