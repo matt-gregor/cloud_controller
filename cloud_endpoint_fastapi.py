@@ -1,4 +1,5 @@
 import socket
+import time
 
 import numpy as np
 import pyadrc
@@ -249,6 +250,115 @@ w_cl = 1
 k_eso = 10
 
 myadrc = FirstOrderADRC(Ts=H, b0=b0, T_set=5, k_cl=4, k_eso=10, r_lim=(-1, 1), m_lim=(0, 4))
+
+
+class ControlPerformanceAssesment:
+    def __init__(self):
+        # Base values of input variables for calling
+        self.set_point = None
+        self.process_variable = None
+        self.control_variable = None
+        self.controller_type = None
+
+        # Base values for calculated metrics
+        self.current_error = 0.0
+        self.error_sum = 0.0
+        self.overshoot = 0.0
+        self.regulation_time = 0.0
+        self.rise_time = 0.0
+        self.ISE = 0.0
+        self.IAE = 0.0
+        self.MSE = 0.0
+        self.control_cost = 0.0
+
+        # Counter
+        self.counter = 0
+
+        # Control variable
+        self.previous_control_variable = None
+
+        # Setpoints
+        self.prev_set_point = None
+        self.set_point_diff = None
+        self.old_set_point = None
+
+        # Initializing timers
+        self.prev_time = time.perf_counter_ns()
+        self.start_time = time.perf_counter_ns()
+        self.start_time_10_percent = None
+        self.current_step_time = None
+
+    def _zeroing(self):
+        self.current_error = 0.0
+        self.error_sum = 0.0
+        self.overshoot = 0.0
+        self.regulation_time = 0.0
+        self.rise_time = 0.0
+        self.ISE = 0.0
+        self.IAE = 0.0
+        self.MSE = 0.0
+        self.control_cost = 0.0
+        self.counter = 0
+        self.start_time = time.perf_counter_ns()
+        self.start_time_10_percent = None
+
+    def update_CPA_metrics(self, y: float, u: float, sp: float, ct: str):
+        self.prev_set_point = self.set_point
+        self.set_point = sp
+        self.process_variable = y
+        self.previous_control_variable = self.control_variable
+        self.control_variable = u
+        self.controller_type = ct
+
+        self.current_error = self.set_point - self.process_variable
+        self.error_sum += self.current_error
+        self.counter += 1
+
+        if self.prev_set_point and self.prev_set_point != self.set_point:
+            self.set_point_diff = self.set_point - self.prev_set_point
+            self.old_set_point = self.prev_set_point
+            self._zeroing()
+
+        # Time in seconds
+        self.current_step_time = (time.perf_counter_ns() - self.prev_time)/1000000000
+        self.prev_time = time.perf_counter_ns()
+
+        # Overshoot
+        if self.set_point > self.old_set_point:
+            self.overshoot = (self.process_variable - self.set_point)/self.set_point
+        elif self.set_point < self.old_set_point:
+            self.overshoot = (self.set_point - self.process_variable)/self.set_point
+
+        # Regulation time old_sp -> 0.95*new_sp
+        if self.set_point > self.old_set_point and self.process_variable >= self.old_set_point + 0.95*self.set_point_diff:
+            self.regulation_time = (time.perf_counter_ns() - self.start_time)/1000000000
+        elif self.set_point < self.old_set_point and self.process_variable <= self.old_set_point + 0.95*self.set_point_diff:
+            self.regulation_time = (time.perf_counter_ns() - self.start_time)/1000000000
+
+        # Rise time 0.1*new_sp -> 0.90*new_sp TIMER START
+        if self.start_time_10_percent is None:
+            if self.set_point > self.old_set_point and self.process_variable >= self.old_set_point + 0.1*self.set_point_diff:
+                self.start_time_10_percent = time.perf_counter_ns()
+            elif self.set_point < self.old_set_point and self.process_variable <= self.old_set_point + 0.1*self.set_point_diff:
+                self.start_time_10_percent = time.perf_counter_ns()
+
+        # Rise time 0.1*new_sp -> 0.90*new_sp
+        if self.start_time_10_percent:
+            if self.set_point > self.old_set_point and self.process_variable >= self.old_set_point + 0.9*self.set_point_diff:
+                self.rise_time = (time.perf_counter_ns() - self.start_time_10_percent)/1000000000
+            elif self.set_point < self.old_set_point and self.process_variable <= self.old_set_point + 0.9*self.set_point_diff:
+                self.rise_time = (time.perf_counter_ns() - self.start_time_10_percent)/1000000000
+
+        # Integral criteria
+        self.ISE += (self.current_error**2) * self.current_step_time
+        self.IAE += abs(self.current_error * self.current_step_time)
+
+        # Mean Squared Error
+        self.MSE = (1/self.counter) * (self.MSE + (self.current_error - (self.error_sum/self.counter)**2))
+
+        # Control cost
+        if self.previous_control_variable:
+            self.control_cost += abs(self.control_variable - self.previous_control_variable)
 
 
 @app.post("/cloud-controller-endpoint")
