@@ -252,7 +252,7 @@ k_eso = 10
 myadrc = FirstOrderADRC(Ts=H, b0=b0, T_set=5, k_cl=4, k_eso=10, r_lim=(-1, 1), m_lim=(0, 4))
 
 
-class ControlPerformanceAssesment:
+class ControlPerformanceAssesment():
     def __init__(self):
         # Base values of input variables for calling
         self.set_point = None
@@ -361,6 +361,9 @@ class ControlPerformanceAssesment:
             self.control_cost += abs(self.control_variable - self.previous_control_variable)
 
 
+cpa = ControlPerformanceAssesment()
+
+
 @app.post("/cloud-controller-endpoint")
 def cloud_endpoint(data: Data):
 
@@ -369,6 +372,8 @@ def cloud_endpoint(data: Data):
     control_variable = data.ControlVariable
     error_sum = data.ErrorSum
     controller_type = data.ControllerType
+
+    cpa.update_CPA_metrics(process_variable, control_variable, set_point, controller_type)
 
     match controller_type:
 
