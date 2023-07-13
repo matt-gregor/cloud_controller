@@ -322,12 +322,12 @@ class ControlPerformanceAssesment():
         # Time in seconds
         self.current_step_time = (time.perf_counter_ns() - self.prev_time)/1000000000
         self.prev_time = time.perf_counter_ns()
-        if self.old_set_point:
+        if self.old_set_point and self.set_point != 0.0:
             # Overshoot
-            if self.set_point > self.old_set_point and (self.process_variable - self.set_point)/(self.set_point+0.0000001) > self.overshoot:
-                self.overshoot = (self.process_variable - self.set_point)/(self.set_point+0.0000001)
-            elif self.set_point < self.old_set_point and (self.process_variable - self.set_point)/(self.set_point+0.0000001) > self.overshoot:
-                self.overshoot = (self.set_point - self.process_variable)/(self.set_point+0.0000001)
+            if self.set_point > self.old_set_point and (self.process_variable - self.set_point)/self.set_point > self.overshoot:
+                self.overshoot = (self.process_variable - self.set_point)/self.set_point
+            elif self.set_point < self.old_set_point and (self.process_variable - self.set_point)/self.set_point > self.overshoot:
+                self.overshoot = (self.set_point - self.process_variable)/self.set_point
 
             # Regulation time old_sp -> 0.95*new_sp
             if self.regulation_time == 0.0:
