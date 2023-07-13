@@ -1,16 +1,21 @@
+import asyncio
+import os
 import socket
 import time
 
+import influxdb_client
 import numpy as np
 import pyadrc
 import uvicorn
+from dotenv import find_dotenv, load_dotenv
 from fastapi import FastAPI
+from influxdb_client import InfluxDBClient, Point, WritePrecision
+from influxdb_client.client.write_api import SYNCHRONOUS
 from pydantic import BaseModel
 from scipy import signal
 from scipy.optimize import minimize
 
 app = FastAPI()
-
 
 class Data(BaseModel):
     SetPoint: float
@@ -251,6 +256,26 @@ k_eso = 10
 
 myadrc = FirstOrderADRC(Ts=H, b0=b0, T_set=5, k_cl=4, k_eso=10, r_lim=(-1, 1), m_lim=(0, 4))
 
+load_dotenv(find_dotenv())
+
+token = os.environ.get("INFLUXDB_TOKEN")
+org = "cloud_controller"
+url = "influxdb:8086"
+# url = "http://16.16.220.162:8086"
+
+write_client = influxdb_client.InfluxDBClient(url=url, token=token, org=org)
+bucket = "process_metrics"
+
+write_api = write_client.write_api(write_options=SYNCHRONOUS)
+
+
+async def send_data_to_db():
+    while True:
+        print('amogus')
+        vector = [influxdb_client.Point("measurement").field(name, data) for name, data in zip(cpa.names, cpa.return_values())]
+        write_api.write(bucket=bucket, org=org, record=vector)
+        await asyncio.sleep(1)
+
 
 class ControlPerformanceAssesment():
     def __init__(self):
@@ -287,6 +312,20 @@ class ControlPerformanceAssesment():
         self.start_time = self.prev_time
         self.start_time_10_percent = None
         self.current_step_time = None
+
+        # Names
+        self.names = ['set_point',
+                      'process_variable',
+                      'control_variable',
+                      'controller_type',
+                      'current_error',
+                      'overshoot',
+                      'regulation_time',
+                      'rise_time',
+                      'ISE',
+                      'IAE',
+                      'MSE',
+                      'control_cost']
 
     def _zeroing(self):
         self.current_error = 0.0
@@ -351,8 +390,6 @@ class ControlPerformanceAssesment():
                     self.rise_time = (self.prev_time - self.start_time_10_percent)/1000000000
 
         # Integral criteria
-        # self.ISE += (self.current_error**2) * self.current_step_time
-        # self.IAE += abs(self.current_error * self.current_step_time)
         self.ISE += self.current_error**2
         self.IAE += abs(self.current_error)
 
@@ -362,6 +399,20 @@ class ControlPerformanceAssesment():
         # Control cost
         if self.previous_control_variable:
             self.control_cost += abs(self.control_variable - self.previous_control_variable)
+
+    def return_values(self):
+        return [self.set_point,
+                self.process_variable,
+                self.control_variable,
+                self.controller_type,
+                self.current_error,
+                self.overshoot,
+                self.regulation_time,
+                self.rise_time,
+                self.ISE,
+                self.IAE,
+                self.MSE,
+                self.control_cost]
 
 
 cpa = ControlPerformanceAssesment()
@@ -378,6 +429,7 @@ def cloud_endpoint(data: Data):
 
     cpa.update_CPA_metrics(process_variable, control_variable, set_point, controller_type)
     print(f"err: {cpa.current_error}, over: {cpa.overshoot}, reg_t: {cpa.regulation_time}, ris_t: {cpa.rise_time}, ISE: {cpa.ISE}, IAE: {cpa.IAE}, MSE: {cpa.MSE}, ctrl_c: {cpa.control_cost}")
+    # send_data_to_db()
 
     match controller_type:
 
@@ -399,19 +451,13 @@ def cloud_endpoint(data: Data):
         case "ADRC1":
             output = myadrc(process_variable, control_variable, set_point)
 
-    # print(f"SP: {set_point}, PV: {process_variable}, CV: {control_variable}, output: {output}")
-
-    # UDP_IP = "mynodered"
-    # UDP_PORT = 5005
-
-    # message_to_node_red = f"{set_point} {process_variable} {control_variable} {controller_type}".encode('utf-8')
-
-    # sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    # sock.sendto(message_to_node_red, (UDP_IP, UDP_PORT))
-
     result = str(output)
     return {"result": result}
 
+@app.on_event('startup')
+async def service_tasks_startup():
+    """Start all the non-blocking service tasks, which run in the background."""
+    asyncio.create_task(send_data_to_db())
 
 if __name__ == "__main__":
     # Run the application with uvicorn
