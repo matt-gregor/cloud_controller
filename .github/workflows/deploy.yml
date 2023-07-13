@@ -33,7 +33,7 @@ jobs:
           docker build -t cloud_controller:latest .
           docker stop docker_controller && docker rm -fv docker_controller && docker image prune -f || true
           docker run --restart unless-stopped \
-          -e ${{ secrets.INFLUXDB_TOKEN }}
+          -e ${{ secrets.INFLUXDB_TOKEN }} \
           --detach \
           -p 8080:8080 \
           --name docker_controller \
