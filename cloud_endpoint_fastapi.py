@@ -271,9 +271,9 @@ write_api = write_client.write_api(write_options=SYNCHRONOUS)
 
 async def send_data_to_db():
     while True:
-        print('amogus')
-        vector = [influxdb_client.Point("measurement").field(name, data) for name, data in zip(cpa.names, cpa.return_values())]
-        write_api.write(bucket=bucket, org=org, record=vector)
+        if (time.perf_counter_ns() - cpa.prev_time)/1000000000 < 2:
+            vector = [influxdb_client.Point("measurement").field(name, data) for name, data in zip(cpa.names, cpa.return_values())]
+            write_api.write(bucket=bucket, org=org, record=vector)
         await asyncio.sleep(1)
 
 
