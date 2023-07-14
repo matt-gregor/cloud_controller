@@ -428,7 +428,7 @@ def cloud_endpoint(data: Data):
     controller_type = data.ControllerType
 
     cpa.update_CPA_metrics(process_variable, control_variable, set_point, controller_type)
-    print(f"err: {cpa.current_error}, over: {cpa.overshoot}, reg_t: {cpa.regulation_time}, ris_t: {cpa.rise_time}, ISE: {cpa.ISE}, IAE: {cpa.IAE}, MSE: {cpa.MSE}, ctrl_c: {cpa.control_cost}")
+    # print(f"err: {cpa.current_error}, over: {cpa.overshoot}, reg_t: {cpa.regulation_time}, ris_t: {cpa.rise_time}, ISE: {cpa.ISE}, IAE: {cpa.IAE}, MSE: {cpa.MSE}, ctrl_c: {cpa.control_cost}")
     # send_data_to_db()
 
     match controller_type:
