@@ -260,7 +260,7 @@ load_dotenv(find_dotenv())
 
 token = os.environ.get("INFLUXDB_TOKEN")
 org = "cloud_controller"
-url = "influxdb:8086"
+url = "http://influxdb:8086"
 # url = "http://16.16.220.162:8086"
 
 write_client = influxdb_client.InfluxDBClient(url=url, token=token, org=org)
