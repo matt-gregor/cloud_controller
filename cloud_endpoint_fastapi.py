@@ -38,7 +38,8 @@ errorSum = 0
 
 def pi_controller(set_point, process_variable, error_sum):
     global errorSum
-    errorSum = error_sum
+    if errorSum == 0:
+        errorSum = error_sum
     error = set_point - process_variable
     errorSum += error
     # output = kr * error + (kr * h / Ti) * errorSum + kr * Td * (error - errorPrev) / h #PID
@@ -430,6 +431,11 @@ def cloud_endpoint(data: Data):
     cpa.update_CPA_metrics(process_variable, control_variable, set_point, controller_type)
     # print(f"err: {cpa.current_error}, over: {cpa.overshoot}, reg_t: {cpa.regulation_time}, ris_t: {cpa.rise_time}, ISE: {cpa.ISE}, IAE: {cpa.IAE}, MSE: {cpa.MSE}, ctrl_c: {cpa.control_cost}")
     # send_data_to_db()
+
+    # Ensure bumpless switching for PID
+    if controller_type != "PID0":
+        global errorSum
+        errorSum = 0
 
     match controller_type:
 
