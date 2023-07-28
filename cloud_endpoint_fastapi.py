@@ -421,7 +421,7 @@ cpa = ControlPerformanceAssesment()
 
 @app.post("/cloud-controller-endpoint")
 def cloud_endpoint(data: Data):
-
+    time1 = time.perf_counter_ns()
     set_point = data.SetPoint
     process_variable = data.ProcessVariable
     control_variable = data.ControlVariable
@@ -458,7 +458,9 @@ def cloud_endpoint(data: Data):
             output = myadrc(process_variable, control_variable, set_point)
 
     result = str(output)
-    return {"result": result}
+    time2 = (time.perf_counter_ns() - time1)/1000000
+    return {"result": result, "operation_time": str(time2)}
+
 
 @app.on_event('startup')
 async def service_tasks_startup():
