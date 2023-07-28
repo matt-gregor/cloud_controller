@@ -22,6 +22,9 @@ class Data(BaseModel):
     ProcessVariable: float
     ControlVariable: float
     ErrorSum: float
+    MPCHorizonLength: float
+    MPCQ: float
+    MPCR: float
     ControllerType: str
 
 
@@ -54,7 +57,7 @@ def pi_controller(set_point, process_variable, error_sum):
 
 
 '''
-DECLARING GLOBAL CONSTANTS, CONTRAINTS AND VARIABLES FOR MPC
+DECLARING GLOBAL CONSTANTS FOR MPC
 '''
 # System parameters
 K = 0.925156  # Gain
@@ -62,12 +65,8 @@ T = 3.45  # Time constant
 T0 = 0.1  # Dead time
 H = 0.1  # Sampling time
 # Cost function parameters
-Q = 100.0  # State deviation weight
-R = 0.1  # Control effort weight
-# Control input constraints
-u_min = 0.0
-u_max = 4.0
-
+# Q = 100.0  # State deviation weight
+# R = 0.1  # Control effort weight
 
 def system_model(y, u):
     delta_y = (-1 / T) * y + (K / T) * u
@@ -75,19 +74,19 @@ def system_model(y, u):
     return y
 
 
-def cost_function(u_sequence, y, setpoint_sequence):
+def cost_function(u_sequence, y, setpoint_sequence, q, r):
     cost = 0.0
     for sp, u in zip(setpoint_sequence, u_sequence):
         y_predicted = system_model(y, u)
-        cost += Q * (sp - y_predicted)**2 + R * u**2
+        cost += q * (sp - y_predicted)**2 + r * u**2
         y = y_predicted
     return cost
 
 
-def mpc_controller(y, set_point, u, horizon):
+def mpc_controller(y, set_point, u, horizon, q, r):
 
     # Define bounds for control inputs
-    bounds = [(u_min, u_max)] * horizon
+    bounds = [(LOWERLIMIT, UPPERLIMIT)] * horizon
 
     # Set initial control sequence
     setpoint_sequence = np.full(horizon, set_point)
@@ -97,7 +96,7 @@ def mpc_controller(y, set_point, u, horizon):
     optimization_result = minimize(
         cost_function,
         u_sequence_initial,
-        args=(y, setpoint_sequence),
+        args=(y, setpoint_sequence, q, r),
         bounds=bounds,
         method='SLSQP',
         options={'maxiter': 5}
@@ -114,28 +113,65 @@ numerator = [0, 0.02643]
 denominator = [1, -0.9714]
 
 
-def system_model2(y, u_sequence):
+def system_model1(y, u_sequence):
     # return np.array(y + signal.lfilter(numerator, denominator, u_sequence))
     return np.concatenate((np.array([y]), np.array(y + signal.lfilter(numerator, denominator, u_sequence[0:len(u_sequence)-1]))))
 
 
 # q = 10.0  # State deviation weight
 # r = 0.1  # Control effort weight
-q = 100.0  # State deviation weight
-r = 0.1  # Control effort weight
+# q = 100.0  # State deviation weight
+# r = 0.1  # Control effort weight
 # q = 1000.0  # State deviation weight
 # r = 0.1  # Control effort weight
 
 
-def cost_function2(u_sequence, y, setpoint_sequence):
-    y_predicted = system_model2(y, u_sequence)
+def cost_function1(u_sequence, y, setpoint_sequence, q, r):
+    y_predicted = system_model1(y, u_sequence)
     return np.sum(q * (setpoint_sequence - y_predicted)**2 + r * u_sequence**2)
 
 
-def mpc_controller2(y, set_point, u, horizon):
+def mpc_controller1(y, set_point, u, horizon, q, r):
 
     # Define bounds for control inputs
-    bounds = [(u_min, u_max)] * horizon
+    bounds = [(LOWERLIMIT, UPPERLIMIT)] * horizon
+    setpoint_sequence = np.full(horizon, set_point)
+    u_sequence_initial = np.full(horizon, u)
+
+    # Define optimization problem
+    optimization_result = minimize(
+        cost_function1,
+        u_sequence_initial,
+        args=(y, setpoint_sequence, q, r),
+        bounds=bounds,
+        method='SLSQP',
+        # options={'maxiter': 15}
+        options={'maxiter': 15}
+    )
+
+    # Extract optimal control sequence
+    u_sequence_optimal = optimization_result.x
+
+    # Return next optimal control input
+    return u_sequence_optimal[0]
+
+
+def cost_function2(u_sequence, y, setpoint_sequence, q, r, u_prev):
+    cost = 0.0
+    for sp, u in zip(setpoint_sequence, u_sequence):
+        y_predicted = system_model(y, u)
+        cost += q * (sp - y_predicted)**2 + r * (u - u_prev)**2
+        y = y_predicted
+        u_prev = u
+    return cost
+
+
+def mpc_controller2(y, set_point, u, horizon, q, r):
+
+    # Define bounds for control inputs
+    bounds = [(LOWERLIMIT, UPPERLIMIT)] * horizon
+
+    # Set initial control sequence
     setpoint_sequence = np.full(horizon, set_point)
     u_sequence_initial = np.full(horizon, u)
 
@@ -143,11 +179,10 @@ def mpc_controller2(y, set_point, u, horizon):
     optimization_result = minimize(
         cost_function2,
         u_sequence_initial,
-        args=(y, setpoint_sequence),
+        args=(y, setpoint_sequence, q, r, u),
         bounds=bounds,
         method='SLSQP',
-        # options={'maxiter': 15}
-        options={'maxiter': 15}
+        options={'maxiter': 5}
     )
 
     # Extract optimal control sequence
@@ -166,7 +201,7 @@ order = 1
 w_cl = 1
 k_eso = 10
 
-adrc_statespace = pyadrc.StateSpace(order, delta, b0, w_cl, k_eso, m_lim=(0, 4), r_lim=(-1, 1))
+adrc_statespace = pyadrc.StateSpace(order, delta, b0, w_cl, k_eso, m_lim=(LOWERLIMIT, UPPERLIMIT), r_lim=(-1, 1))
 
 
 def saturation(_limits: tuple, _val: float) -> float:
@@ -255,7 +290,7 @@ order = 1
 w_cl = 1
 k_eso = 10
 
-myadrc = FirstOrderADRC(Ts=H, b0=b0, T_set=5, k_cl=4, k_eso=10, r_lim=(-1, 1), m_lim=(0, 4))
+myadrc = FirstOrderADRC(Ts=H, b0=b0, T_set=5, k_cl=4, k_eso=10, r_lim=(-1, 1), m_lim=(LOWERLIMIT, UPPERLIMIT))
 
 load_dotenv(find_dotenv())
 
@@ -433,6 +468,9 @@ def cloud_endpoint(data: Data):
     process_variable = data.ProcessVariable
     control_variable = data.ControlVariable
     error_sum = data.ErrorSum
+    mpc_horizon = data.MPCHorizonLength
+    mpc_q = data.MPCQ
+    mpc_r = data.MPCR
     controller_type = data.ControllerType
 
     cpa.update_CPA_metrics(process_variable, control_variable, set_point, controller_type)
@@ -450,13 +488,16 @@ def cloud_endpoint(data: Data):
             output = pi_controller(set_point, process_variable, error_sum)
 
         case "MPC0":
-            horizon = 30
-            output = mpc_controller(process_variable, set_point, control_variable, horizon)
+            # horizon = 30
+            output = mpc_controller(process_variable, set_point, control_variable, mpc_horizon, mpc_q, mpc_r)
 
         case "MPC1":
             # horizon = 20
-            horizon = 20
-            output = mpc_controller2(process_variable, set_point, control_variable, horizon)
+            output = mpc_controller1(process_variable, set_point, control_variable, mpc_horizon, mpc_q, mpc_r)
+
+        case "MPC2":
+
+            output = mpc_controller2(process_variable, set_point, control_variable, mpc_horizon, mpc_q, mpc_r)
 
         case "ADRC0":
             output = adrc_statespace(process_variable, control_variable, set_point)
