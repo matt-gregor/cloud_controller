@@ -300,11 +300,14 @@ class ControlPerformanceAssesment():
         # Counter
         self.counter = 0
 
+        # Previous controller type (needed for zeroing)
+        self.previous_controller_type = None
+
         # Control variable
         self.previous_control_variable = None
 
         # Setpoints
-        self.prev_set_point = None
+        self.previous_set_point = None
         self.set_point_diff = None
         self.old_set_point = None
 
@@ -343,16 +346,20 @@ class ControlPerformanceAssesment():
         self.start_time_10_percent = None
 
     def update_CPA_metrics(self, y: float, u: float, sp: float, ct: str):
-        self.prev_set_point = self.set_point
+        self.previous_set_point = self.set_point
         self.set_point = sp
         self.process_variable = y
         self.previous_control_variable = self.control_variable
         self.control_variable = u
+        self.previous_controller_type = self.controller_type
         self.controller_type = ct
 
-        if self.prev_set_point and self.prev_set_point != self.set_point:
-            self.set_point_diff = self.set_point - self.prev_set_point
-            self.old_set_point = self.prev_set_point
+        if self.previous_set_point and self.previous_set_point != self.set_point:
+            self.set_point_diff = self.set_point - self.previous_set_point
+            self.old_set_point = self.previous_set_point
+            self._zeroing()
+
+        if self.previous_controller_type and self.previous_controller_type != self.controller_type:
             self._zeroing()
 
         self.current_error = self.set_point - self.process_variable
