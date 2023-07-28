@@ -126,9 +126,9 @@ def system_model1(y, u_sequence):
 # r = 0.1  # Control effort weight
 
 
-def cost_function1(u_sequence, y, setpoint_sequence, q, r):
+def cost_function1(u_sequence, y, setpoint_sequence, q, r, u):
     y_predicted = system_model1(y, u_sequence)
-    return np.sum(q * (setpoint_sequence - y_predicted)**2 + r * u_sequence**2)
+    return np.sum(q * (setpoint_sequence - y_predicted)**2 + r * (u_sequence - np.concatenate((np.array([u]), u_sequence[0:-1])))**2)
 
 
 def mpc_controller1(y, set_point, u, horizon, q, r):
@@ -142,7 +142,7 @@ def mpc_controller1(y, set_point, u, horizon, q, r):
     optimization_result = minimize(
         cost_function1,
         u_sequence_initial,
-        args=(y, setpoint_sequence, q, r),
+        args=(y, setpoint_sequence, q, r, u),
         bounds=bounds,
         method='SLSQP',
         # options={'maxiter': 15}
