@@ -146,7 +146,7 @@ def mpc_controller1(y, set_point, u, horizon, q, r):
         bounds=bounds,
         method='SLSQP',
         # options={'maxiter': 15}
-        options={'maxiter': 15}
+        options={'maxiter': 5}
     )
 
     # Extract optimal control sequence
