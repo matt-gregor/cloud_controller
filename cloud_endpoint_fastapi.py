@@ -505,9 +505,9 @@ def cloud_endpoint(data: Data):
         case "ADRC1":
             output = myadrc(process_variable, control_variable, set_point)
 
-    result = str(output)
+    result = output
     time2 = (time.perf_counter_ns() - time1)/1000000
-    return {"result": result, "operation_time": str(time2), "cpa": cpa.return_values()}
+    return {"result": result, "operation_time": time2, "cpa": cpa.return_values()}
 
 
 @app.on_event('startup')
