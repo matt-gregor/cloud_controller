@@ -31,8 +31,8 @@ class Data(BaseModel):
 '''
 DECLARING GLOBAL CONSTANTS, CONTRAINTS AND VARIABLES FOR PID
 '''
-LOWERLIMIT = 0
-UPPERLIMIT = 4
+LOWERLIMIT = 0.0
+UPPERLIMIT = 4.0
 TI = 3.45
 H = 0.1
 KR = 1.202936
@@ -512,7 +512,7 @@ def cloud_endpoint(data: Data):
 
 @app.on_event('startup')
 async def service_tasks_startup():
-    """Start all the non-blocking service tasks, which run in the background."""
+    # Start all the non-blocking service tasks, which run in the background
     asyncio.create_task(send_data_to_db())
 
 if __name__ == "__main__":
