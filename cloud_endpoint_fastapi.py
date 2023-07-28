@@ -22,7 +22,7 @@ class Data(BaseModel):
     ProcessVariable: float
     ControlVariable: float
     ErrorSum: float
-    MPCHorizonLength: float
+    MPCHorizonLength: int
     MPCQ: float
     MPCR: float
     ControllerType: str
