@@ -507,7 +507,7 @@ def cloud_endpoint(data: Data):
 
     result = str(output)
     time2 = (time.perf_counter_ns() - time1)/1000000
-    return {"result": result, "operation_time": str(time2)}
+    return {"result": result, "operation_time": str(time2), "cpa": cpa.return_values()}
 
 
 @app.on_event('startup')
