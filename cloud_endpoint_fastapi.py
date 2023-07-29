@@ -94,12 +94,12 @@ def mpc_controller(y, set_point, u, horizon, q, r):
 
     # Define optimization problem
     optimization_result = minimize(
-        cost_function,
+        cost_function2,
         u_sequence_initial,
-        args=(y, setpoint_sequence, q, r),
+        args=(y, setpoint_sequence, q, r, u),
         bounds=bounds,
         method='SLSQP',
-        options={'maxiter': 5}
+        options={'maxiter': 20}
     )
 
     # Extract optimal control sequence
@@ -140,13 +140,13 @@ def mpc_controller1(y, set_point, u, horizon, q, r):
 
     # Define optimization problem
     optimization_result = minimize(
-        cost_function1,
+        cost_function2,
         u_sequence_initial,
         args=(y, setpoint_sequence, q, r, u),
         bounds=bounds,
         method='SLSQP',
         # options={'maxiter': 15}
-        options={'maxiter': 5}
+        options={'maxiter': 10}
     )
 
     # Extract optimal control sequence
@@ -201,7 +201,7 @@ order = 1
 w_cl = 1
 k_eso = 10
 
-adrc_statespace = pyadrc.StateSpace(order, delta, b0, w_cl, k_eso, m_lim=(LOWERLIMIT, UPPERLIMIT), r_lim=(-1, 1))
+# adrc_statespace = pyadrc.StateSpace(order, delta, b0, w_cl, k_eso, m_lim=(LOWERLIMIT, UPPERLIMIT), r_lim=(-1, 1))
 
 
 def saturation(_limits: tuple, _val: float) -> float:
@@ -291,6 +291,24 @@ w_cl = 1
 k_eso = 10
 
 myadrc = FirstOrderADRC(Ts=H, b0=b0, T_set=5, k_cl=4, k_eso=10, r_lim=(-1, 1), m_lim=(LOWERLIMIT, UPPERLIMIT))
+
+myadrc1 = FirstOrderADRC(Ts=H, b0=b0*1.1, T_set=5, k_cl=4, k_eso=10, r_lim=(-1, 1), m_lim=(LOWERLIMIT, UPPERLIMIT))
+
+myadrc2 = FirstOrderADRC(Ts=H, b0=b0*1.5, T_set=5, k_cl=4, k_eso=10, r_lim=(-1, 1), m_lim=(LOWERLIMIT, UPPERLIMIT))
+
+myadrc3 = FirstOrderADRC(Ts=H, b0=b0*0.9, T_set=5, k_cl=4, k_eso=10, r_lim=(-1, 1), m_lim=(LOWERLIMIT, UPPERLIMIT))
+
+myadrc4 = FirstOrderADRC(Ts=H, b0=b0*0.5, T_set=5, k_cl=4, k_eso=10, r_lim=(-1, 1), m_lim=(LOWERLIMIT, UPPERLIMIT))
+
+myadrc5 = FirstOrderADRC(Ts=H, b0=b0, T_set=1, k_cl=4, k_eso=10, r_lim=(-1, 1), m_lim=(LOWERLIMIT, UPPERLIMIT))
+
+myadrc6 = FirstOrderADRC(Ts=H, b0=b0, T_set=10, k_cl=4, k_eso=10, r_lim=(-1, 1), m_lim=(LOWERLIMIT, UPPERLIMIT))
+
+myadrc7 = FirstOrderADRC(Ts=H, b0=b0, T_set=5, k_cl=4, k_eso=3, r_lim=(-1, 1), m_lim=(LOWERLIMIT, UPPERLIMIT))
+
+myadrc8 = FirstOrderADRC(Ts=H, b0=b0, T_set=5, k_cl=4, k_eso=6, r_lim=(-1, 1), m_lim=(LOWERLIMIT, UPPERLIMIT))
+
+myadrc9 = FirstOrderADRC(Ts=H, b0=b0, T_set=5, k_cl=4, k_eso=20, r_lim=(-1, 1), m_lim=(LOWERLIMIT, UPPERLIMIT))
 
 load_dotenv(find_dotenv())
 
@@ -496,14 +514,37 @@ def cloud_endpoint(data: Data):
             output = mpc_controller1(process_variable, set_point, control_variable, mpc_horizon, mpc_q, mpc_r)
 
         case "MPC2":
-
             output = mpc_controller2(process_variable, set_point, control_variable, mpc_horizon, mpc_q, mpc_r)
 
         case "ADRC0":
-            output = adrc_statespace(process_variable, control_variable, set_point)
+            output = myadrc(process_variable, control_variable, set_point)
 
         case "ADRC1":
-            output = myadrc(process_variable, control_variable, set_point)
+            output = myadrc1(process_variable, control_variable, set_point)
+
+        case "ADRC2":
+            output = myadrc2(process_variable, control_variable, set_point)
+
+        case "ADRC3":
+            output = myadrc3(process_variable, control_variable, set_point)
+
+        case "ADRC4":
+            output = myadrc4(process_variable, control_variable, set_point)
+
+        case "ADRC5":
+            output = myadrc5(process_variable, control_variable, set_point)
+
+        case "ADRC6":
+            output = myadrc6(process_variable, control_variable, set_point)
+
+        case "ADRC7":
+            output = myadrc7(process_variable, control_variable, set_point)
+
+        case "ADRC8":
+            output = myadrc8(process_variable, control_variable, set_point)
+
+        case "ADRC9":
+            output = myadrc9(process_variable, control_variable, set_point)
 
     result = output
     time2 = (time.perf_counter_ns() - time1)/1000000
