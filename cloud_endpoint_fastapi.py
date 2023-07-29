@@ -548,6 +548,9 @@ def cloud_endpoint(data: Data):
         case "ADRC9":
             output = myadrc9(process_variable, control_variable, set_point)
 
+        case "ADRC10":
+            output = myadrc10(process_variable, control_variable, set_point)
+
     result = output
     time2 = (time.perf_counter_ns() - time1)/1000000
     return {"result": result, "operation_time": time2, "cpa_names": cpa.names, "cpa_val": cpa.return_values()}
