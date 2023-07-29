@@ -310,6 +310,8 @@ myadrc8 = FirstOrderADRC(Ts=H, b0=b0, T_set=5, k_cl=4, k_eso=6, r_lim=(-1, 1), m
 
 myadrc9 = FirstOrderADRC(Ts=H, b0=b0, T_set=5, k_cl=4, k_eso=20, r_lim=(-1, 1), m_lim=(LOWERLIMIT, UPPERLIMIT))
 
+myadrc10 = FirstOrderADRC(Ts=H, b0=b0*5, T_set=5, k_cl=4, k_eso=10, r_lim=(-1, 1), m_lim=(LOWERLIMIT, UPPERLIMIT))
+
 load_dotenv(find_dotenv())
 
 token = os.environ.get("INFLUXDB_TOKEN")
