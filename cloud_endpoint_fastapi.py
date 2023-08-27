@@ -5,17 +5,16 @@ import time
 
 import influxdb_client
 import numpy as np
-import pyadrc
 import uvicorn
 from dotenv import find_dotenv, load_dotenv
 from fastapi import FastAPI
 from influxdb_client import InfluxDBClient, Point, WritePrecision
 from influxdb_client.client.write_api import SYNCHRONOUS
 from pydantic import BaseModel
-from scipy import signal
 from scipy.optimize import minimize
 
 app = FastAPI()
+
 
 class Data(BaseModel):
     SetPoint: float
@@ -29,7 +28,7 @@ class Data(BaseModel):
 
 
 '''
-DECLARING GLOBAL CONSTANTS, CONTRAINTS AND VARIABLES FOR PID
+DECLARING GLOBAL CONSTANTS, CONTRAINTS AND VARIABLES FOR PID CONTROLLER
 '''
 LOWERLIMIT = 0.0
 UPPERLIMIT = 4.0
@@ -64,23 +63,12 @@ K = 0.925156  # Gain
 T = 3.45  # Time constant
 T0 = 0.1  # Dead time
 H = 0.1  # Sampling time
-# Cost function parameters
-# Q = 100.0  # State deviation weight
-# R = 0.1  # Control effort weight
+
 
 def system_model(y, u):
     delta_y = (-1 / T) * y + (K / T) * u
     y += delta_y * H
     return y
-
-
-def cost_function(u_sequence, y, setpoint_sequence, q, r):
-    cost = 0.0
-    for sp, u in zip(setpoint_sequence, u_sequence):
-        y_predicted = system_model(y, u)
-        cost += q * (sp - y_predicted)**2 + r * u**2
-        y = y_predicted
-    return cost
 
 
 def mpc_controller(y, set_point, u, horizon, q, r):
@@ -107,28 +95,6 @@ def mpc_controller(y, set_point, u, horizon, q, r):
 
     # Return next optimal control input
     return u_sequence_optimal[0]
-
-
-numerator = [0, 0.02643]
-denominator = [1, -0.9714]
-
-
-def system_model1(y, u_sequence):
-    # return np.array(y + signal.lfilter(numerator, denominator, u_sequence))
-    return np.concatenate((np.array([y]), np.array(y + signal.lfilter(numerator, denominator, u_sequence[0:len(u_sequence)-1]))))
-
-
-# q = 10.0  # State deviation weight
-# r = 0.1  # Control effort weight
-# q = 100.0  # State deviation weight
-# r = 0.1  # Control effort weight
-# q = 1000.0  # State deviation weight
-# r = 0.1  # Control effort weight
-
-
-def cost_function1(u_sequence, y, setpoint_sequence, q, r, u):
-    y_predicted = system_model1(y, u_sequence)
-    return np.sum(q * (setpoint_sequence - y_predicted)**2 + r * (u_sequence - np.concatenate((np.array([u]), u_sequence[0:-1])))**2)
 
 
 def mpc_controller1(y, set_point, u, horizon, q, r):
@@ -195,13 +161,6 @@ def mpc_controller2(y, set_point, u, horizon, q, r):
 '''
 DECLARING GLOBAL CONSTANTS, CONTRAINTS AND VARIABLES FOR ADRC
 '''
-b0 = K / T
-delta = H
-order = 1
-w_cl = 1
-k_eso = 10
-
-# adrc_statespace = pyadrc.StateSpace(order, delta, b0, w_cl, k_eso, m_lim=(LOWERLIMIT, UPPERLIMIT), r_lim=(-1, 1))
 
 
 def saturation(_limits: tuple, _val: float) -> float:
@@ -292,32 +251,12 @@ k_eso = 10
 
 myadrc = FirstOrderADRC(Ts=H, b0=b0, T_set=5, k_cl=4, k_eso=10, r_lim=(-1, 1), m_lim=(LOWERLIMIT, UPPERLIMIT))
 
-myadrc1 = FirstOrderADRC(Ts=H, b0=b0*1.1, T_set=5, k_cl=4, k_eso=10, r_lim=(-1, 1), m_lim=(LOWERLIMIT, UPPERLIMIT))
-
-myadrc2 = FirstOrderADRC(Ts=H, b0=b0*1.5, T_set=5, k_cl=4, k_eso=10, r_lim=(-1, 1), m_lim=(LOWERLIMIT, UPPERLIMIT))
-
-myadrc3 = FirstOrderADRC(Ts=H, b0=b0*0.9, T_set=5, k_cl=4, k_eso=10, r_lim=(-1, 1), m_lim=(LOWERLIMIT, UPPERLIMIT))
-
-myadrc4 = FirstOrderADRC(Ts=H, b0=b0*0.5, T_set=5, k_cl=4, k_eso=10, r_lim=(-1, 1), m_lim=(LOWERLIMIT, UPPERLIMIT))
-
-myadrc5 = FirstOrderADRC(Ts=H, b0=b0, T_set=1, k_cl=4, k_eso=10, r_lim=(-1, 1), m_lim=(LOWERLIMIT, UPPERLIMIT))
-
-myadrc6 = FirstOrderADRC(Ts=H, b0=b0, T_set=10, k_cl=4, k_eso=10, r_lim=(-1, 1), m_lim=(LOWERLIMIT, UPPERLIMIT))
-
-myadrc7 = FirstOrderADRC(Ts=H, b0=b0, T_set=5, k_cl=4, k_eso=3, r_lim=(-1, 1), m_lim=(LOWERLIMIT, UPPERLIMIT))
-
-myadrc8 = FirstOrderADRC(Ts=H, b0=b0, T_set=5, k_cl=4, k_eso=6, r_lim=(-1, 1), m_lim=(LOWERLIMIT, UPPERLIMIT))
-
-myadrc9 = FirstOrderADRC(Ts=H, b0=b0, T_set=5, k_cl=4, k_eso=20, r_lim=(-1, 1), m_lim=(LOWERLIMIT, UPPERLIMIT))
-
-myadrc10 = FirstOrderADRC(Ts=H, b0=b0*5, T_set=5, k_cl=4, k_eso=10, r_lim=(-1, 1), m_lim=(LOWERLIMIT, UPPERLIMIT))
 
 load_dotenv(find_dotenv())
 
 token = os.environ.get("INFLUXDB_TOKEN")
 org = "cloud_controller"
 url = "http://influxdb:8086"
-# url = "http://16.16.220.162:8086"
 
 write_client = influxdb_client.InfluxDBClient(url=url, token=token, org=org)
 bucket = "process_metrics"
@@ -495,7 +434,6 @@ def cloud_endpoint(data: Data):
 
     cpa.update_CPA_metrics(process_variable, control_variable, set_point, controller_type)
     # print(f"err: {cpa.current_error}, over: {cpa.overshoot}, reg_t: {cpa.regulation_time}, ris_t: {cpa.rise_time}, ISE: {cpa.ISE}, IAE: {cpa.IAE}, MSE: {cpa.MSE}, ctrl_c: {cpa.control_cost}")
-    # send_data_to_db()
 
     # Ensure bumpless switching for PID
     if controller_type != "PID0":
@@ -521,36 +459,6 @@ def cloud_endpoint(data: Data):
         case "ADRC0":
             output = myadrc(process_variable, control_variable, set_point)
 
-        case "ADRC1":
-            output = myadrc1(process_variable, control_variable, set_point)
-
-        case "ADRC2":
-            output = myadrc2(process_variable, control_variable, set_point)
-
-        case "ADRC3":
-            output = myadrc3(process_variable, control_variable, set_point)
-
-        case "ADRC4":
-            output = myadrc4(process_variable, control_variable, set_point)
-
-        case "ADRC5":
-            output = myadrc5(process_variable, control_variable, set_point)
-
-        case "ADRC6":
-            output = myadrc6(process_variable, control_variable, set_point)
-
-        case "ADRC7":
-            output = myadrc7(process_variable, control_variable, set_point)
-
-        case "ADRC8":
-            output = myadrc8(process_variable, control_variable, set_point)
-
-        case "ADRC9":
-            output = myadrc9(process_variable, control_variable, set_point)
-
-        case "ADRC10":
-            output = myadrc10(process_variable, control_variable, set_point)
-
     result = output
     time2 = (time.perf_counter_ns() - time1)/1000000
     return {"result": result, "operation_time": time2, "cpa_names": cpa.names, "cpa_val": cpa.return_values()}
@@ -564,4 +472,4 @@ async def service_tasks_startup():
 if __name__ == "__main__":
     # Run the application with uvicorn
     # uvicorn.run(app, host="0.0.0.0", port=8080)
-    print('hello world :)')
+    pass
